@@ -24,7 +24,7 @@ float sum[MAX_NODES];
 struct Web_Graph {
     int s_point[MAX_EDGES];
     int e_point[MAX_EDGES];
-    int outbound[MAX_NODES];
+    float outbound[MAX_NODES];
 };
 
 Web_Graph graph;
@@ -45,7 +45,7 @@ void get_graph(string file_name) {
     for (int i = 0; i < num_nodes; i++) {
         rank_value[i] = 1.0;
         sum[i] = 0.0;
-        graph.outbound[i] = 0;
+        graph.outbound[i] = 0.0;
     }
 
     int cur = 0;
@@ -55,12 +55,39 @@ void get_graph(string file_name) {
         sin1 >> n1 >> n2;
         graph.s_point[cur] = n1;
         graph.e_point[cur] = n2;
-        graph.outbound[n1]++;
+        graph.outbound[n1] += 1.0;
         cur++;
     }
     num_edges = cur;
 
     cout << "Get the web graph" << endl;
+}
+
+void avx2_page_rank() {
+    for (int i = 0; i < NUM_ITER; i++) {
+        struct timeval start = get_time();
+
+        for (int j = 0; j < num_edges; j+=8) {
+            __m256i s_point = _mm256_loadu_si256((__m256i*) &(graph.s_point[j]));
+            __m256i e_point = _mm256_loadu_si256((__m256i*) &(graph.e_point[j]));
+
+            __m256 vsum = _mm256_i32gather_ps(sum, e_point, 4);
+            __m256 vrank = _mm256_i32gather_ps(rank_value, s_point, 4);
+            __m256 voutbound = _mm256_i32gather_ps(graph.outbound, s_point, 4);
+
+            vsum += vrank / voutbound;
+            _mm256_i32scatter_ps(sum, e_point, vsum, 4);
+        }
+
+        for (int j = 0; j < num_nodes; j++) {
+            rank_value[j] = (1 - damping_factor) / num_nodes + damping_factor * sum[j];
+        }
+        struct timeval end = get_time();
+        cout << "One Itertion Time : ";
+        cout << (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0 << endl; 
+    }
+
+    cout << "AVX2 Version PageRank calculation completed" << endl;  
 }
 
 void avx512_page_rank() {
@@ -87,7 +114,7 @@ void avx512_page_rank() {
         cout << (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0 << endl; 
     }
 
-    cout << "PageRank calculation completed" << endl;
+    cout << "AVX512 Version PageRank calculation completed" << endl;
 }
 
 void show_value(int data_len) {
@@ -104,7 +131,8 @@ int main(int argc, char *argv[]) {
     } else {
         char *file_name = argv[1];
         get_graph(file_name);
-        avx512_page_rank();
+        //avx512_page_rank();
+        avx2_page_rank();
         if (SHOW_FLAG) {
             int data_len = 10;
             show_value(data_len);
