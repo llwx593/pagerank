@@ -7,6 +7,7 @@
 #include <smmintrin.h>
 #include <nmmintrin.h>
 #include <immintrin.h>
+#include <emmintrin.h>
 
 using namespace std;
 
@@ -96,8 +97,8 @@ void avx512_page_rank() {
 
         for (int j = 0; j < num_edges; j+=16) {
             void *src = &(graph.s_point[j]);
-            __m512i s_point = _mm512_load_epi32(src);
-            __m512i e_point = _mm512_load_epi32(&(graph.e_point[j]));
+            __m512i s_point = _mm512_loadu_epi32(src);
+            __m512i e_point = _mm512_loadu_epi32(&(graph.e_point[j]));
             __m512 vsum = _mm512_i32gather_ps(e_point, sum, 4);
             __m512 vrank = _mm512_i32gather_ps(s_point, rank_value, 4);
             __m512 voutbound = _mm512_i32gather_ps(s_point, graph.outbound, 4);
@@ -117,6 +118,38 @@ void avx512_page_rank() {
     cout << "AVX512 Version PageRank calculation completed" << endl;
 }
 
+void sse_page_rank() {
+    for (int i = 0; i < NUM_ITER; i++) {
+        struct timeval start = get_time();
+
+        for (int j = 0; j < num_edges; j+=4) {
+            __m128i s_point = _mm_loadu_si128((__m128i*) &(graph.s_point[j]));
+            __m128i e_point = _mm_loadu_si128((__m128i*) &(graph.e_point[j]));
+            int s1 = _mm_extract_epi32(s_point, 0);
+            int s2 = _mm_extract_epi32(s_point, 1);
+            int s3 = _mm_extract_epi32(s_point, 2);
+            int s4 = _mm_extract_epi32(s_point, 3);
+            int e1 = _mm_extract_epi32(e_point, 0);
+            int e2 = _mm_extract_epi32(e_point, 1);
+            int e3 = _mm_extract_epi32(e_point, 2);
+            int e4 = _mm_extract_epi32(e_point, 3);
+            sum[e1] = rank_value[s1] / graph.outbound[s1];
+            sum[e2] = rank_value[s2] / graph.outbound[s2];
+            sum[e3] = rank_value[s3] / graph.outbound[s3];
+            sum[e4] = rank_value[s4] / graph.outbound[s4];
+        }
+
+        for (int j = 0; j < num_nodes; j++) {
+            rank_value[j] = (1 - damping_factor) / num_nodes + damping_factor * sum[j];
+        }
+        struct timeval end = get_time();
+        cout << "One Itertion Time : ";
+        cout << (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0 << endl; 
+    }
+
+    cout << "AVX2 Version PageRank calculation completed" << endl;  
+}
+
 void show_value(int data_len) {
     cout << "=================== PageRank ===================" << endl;
     for (int i = 0; i < data_len; i++) {
@@ -131,12 +164,9 @@ int main(int argc, char *argv[]) {
     } else {
         char *file_name = argv[1];
         get_graph(file_name);
-        //avx512_page_rank();
         avx2_page_rank();
-        if (SHOW_FLAG) {
-            int data_len = 10;
-            show_value(data_len);
-        }
+        //avx512_page_rank();
+        //sse_page_rank();
     }
 
     return 0;
