@@ -1,15 +1,18 @@
 #include <iostream>
 #include <string>
+#include <fstream>
 #include <sstream>
 #include <stdlib.h>
 #include <sys/time.h>
 
 using namespace std;
 
-const int damping_factor = 0.85;
-const int MAX_NODES = 2000000;
-const int MAX_EDGES = 50000000;
-const int NUM_ITER = 100;
+#define SHOW_FLAG 1
+
+const float damping_factor = 0.85;
+const int MAX_NODES = 1500000;
+const int MAX_EDGES = 30000000;
+const int NUM_ITER = 10;
 
 int num_nodes, num_edges;
 float rank_value[MAX_NODES];
@@ -24,38 +27,35 @@ struct Web_Graph {
 Web_Graph graph;
 
 struct timeval get_time() {
-    strcut timeval now_time;
+    struct timeval now_time;
     gettimeofday(&now_time, NULL);
     return now_time;
 }
 
 void get_graph(string file_name) {
     ifstream file_in(file_name.c_str());
-
     string line;
-    int count = 0;
-    while(getline(file_in, line)) {
-        stringstream s_in(line);
-        if (count == 0) {
-            s_in >> num_nodes >> num_edges;
+    getline(file_in, line);
+    stringstream sin(line);
+    sin >> num_nodes >> num_edges;
 
-            for (int i =0; i < num_nodes; i++) {
-                rank_value[i] = 1.0;
-                sum[i] = 0.0;
-                graph.outbound[i] = 0;
-            }
-
-            count++;
-        } else {
-            int node1, node2;
-            s_in >> node1 >> node2;
-            graph.s_point[count-1] = node1;
-            graph.e_point[count-1] = node2;
-            graph.outbound[count-1]++;
-            
-            count++;
-        }
+    for (int i = 0; i < num_nodes; i++) {
+        rank_value[i] = 1.0;
+        sum[i] = 0.0;
+        graph.outbound[i] = 0;
     }
+
+    int cur = 0;
+    while(getline(file_in, line)) {
+        int n1, n2;
+        stringstream sin1(line);
+        sin1 >> n1 >> n2;
+        graph.s_point[cur] = n1;
+        graph.e_point[cur] = n2;
+        graph.outbound[n1]++;
+        cur++;
+    }
+    num_edges = cur;
 
     cout << "Get the web graph" << endl;
 }
@@ -76,17 +76,19 @@ void page_rank() {
         }
 
         struct timeval end = get_time();
+        cout << "One Itertion Time : ";
         cout << (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0 << endl; 
     }
 
     cout << "PageRank calculation completed" << endl;
 }
 
-void show_value() {
+void show_value(int data_len) {
     cout << "=================== PageRank ===================" << endl;
-    for (int i = 0; i < num_nodes; i++) {
+    for (int i = 0; i < data_len; i++) {
         cout << "Node " << i << " PageRank is " << rank_value[i] << endl;
     }
+    cout << "===================   Done   ===================" << endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -96,7 +98,10 @@ int main(int argc, char *argv[]) {
         char *file_name = argv[1];
         get_graph(file_name);
         page_rank();
-        show_value();
+        if (SHOW_FLAG) {
+            int data_len = 10;
+            show_value(data_len);
+        }
     }
 
     return 0;
