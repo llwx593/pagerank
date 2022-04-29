@@ -147,7 +147,7 @@ void sse_page_rank() {
         cout << (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0 << endl; 
     }
 
-    cout << "AVX2 Version PageRank calculation completed" << endl;  
+    cout << "SSE Version PageRank calculation completed" << endl;  
 }
 
 void show_value(int data_len) {
@@ -159,14 +159,18 @@ void show_value(int data_len) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        cout << "Error!!! Should have filename" << endl;
+    if (argc != 3) {
+        cout << "Error!!! Please input two args" << endl;
     } else {
-        char *file_name = argv[1];
+        string file_name = argv[1];
+        string simd_type = argv[2];
         get_graph(file_name);
-        avx2_page_rank();
-        //avx512_page_rank();
-        //sse_page_rank();
+        if (simd_type == "avx2")
+            avx2_page_rank();
+        else if (simd_type == "avx512")
+            avx512_page_rank();
+        else if (simd_type == "sse")
+            sse_page_rank();
     }
 
     return 0;

@@ -1,3 +1,4 @@
 *.txt
 lab1_simd/serial_pagerank
-lab1_simd/simd_pagerank
+lab1_simd/x86_pagerank
+lab1_simd/neon_pagerank
