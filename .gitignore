@@ -1,2 +1,3 @@
 *.txt
 lab1_simd/serial_pagerank
+lab1_simd/simd_pagerank
